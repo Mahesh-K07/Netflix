@@ -1,0 +1,16 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#27272a"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="600" fill="url(#grad)"/>
+  <rect x="40" y="80" width="320" height="320" rx="24" fill="#18181b" stroke="#3f3f46" stroke-width="4"/>
+  <path d="M120 340 L170 260 L220 320 L260 260 L310 340 Z" fill="#3f3f46"/>
+  <circle cx="170" cy="220" r="26" fill="#3f3f46"/>
+  <text x="50%" y="480" text-anchor="middle" fill="#a1a1aa" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24">
+    No Poster Available
+  </text>
+</svg>
+
