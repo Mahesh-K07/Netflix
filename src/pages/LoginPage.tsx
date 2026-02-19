@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isValidEmail } from '../utils/validation';
 
 interface LocationState {
   from?: { pathname?: string };
@@ -16,10 +17,43 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const validateForm = (): boolean => {
+    let isValid = true;
+    setEmailError(null);
+    setPasswordError(null);
+
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      setEmailError('Please enter a valid email address');
+      isValid = false;
+    }
+
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      isValid = false;
+    } else if (password.length < 4) {
+      setPasswordError('Password must be at least 4 characters');
+      isValid = false;
+    }
+
+    return isValid;
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    setEmailError(null);
+    setPasswordError(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -27,7 +61,15 @@ function LoginPage() {
       const redirectTo = state?.from?.pathname || '/';
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError((err as Error).message);
+      const errorMessage = (err as Error).message;
+      setError(errorMessage);
+      
+      // Set field-specific errors if applicable
+      if (errorMessage.toLowerCase().includes('email')) {
+        setEmailError(errorMessage);
+      } else if (errorMessage.toLowerCase().includes('password')) {
+        setPasswordError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -47,10 +89,23 @@ function LoginPage() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-zinc-700 transition focus:ring-2 focus:ring-netflixRed"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(null);
+                setError(null);
+              }}
+              className={`w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 transition ${
+                emailError
+                  ? 'ring-red-500 focus:ring-2 focus:ring-red-500'
+                  : 'ring-zinc-700 focus:ring-2 focus:ring-netflixRed'
+              }`}
               required
             />
+            {emailError && (
+              <p className="text-xs text-red-400" role="alert">
+                {emailError}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -62,10 +117,23 @@ function LoginPage() {
               type="password"
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-zinc-700 transition focus:ring-2 focus:ring-netflixRed"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError(null);
+                setError(null);
+              }}
+              className={`w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 transition ${
+                passwordError
+                  ? 'ring-red-500 focus:ring-2 focus:ring-red-500'
+                  : 'ring-zinc-700 focus:ring-2 focus:ring-netflixRed'
+              }`}
               required
             />
+            {passwordError && (
+              <p className="text-xs text-red-400" role="alert">
+                {passwordError}
+              </p>
+            )}
           </div>
 
           {error && (

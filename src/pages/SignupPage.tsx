@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isValidEmail, validatePassword, validateName } from '../utils/validation';
 
 function SignupPage() {
   const { signup } = useAuth();
@@ -11,17 +12,78 @@ function SignupPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+
+  const validateForm = (): boolean => {
+    let isValid = true;
+    setNameError(null);
+    setEmailError(null);
+    setPasswordError(null);
+
+    if (!name.trim()) {
+      setNameError('Name is required');
+      isValid = false;
+    } else {
+      const nameValidation = validateName(name);
+      if (!nameValidation.isValid) {
+        setNameError(nameValidation.error || 'Invalid name');
+        isValid = false;
+      }
+    }
+
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      setEmailError('Please enter a valid email address');
+      isValid = false;
+    }
+
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      isValid = false;
+    } else {
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        setPasswordError(passwordValidation.errors[0] || 'Invalid password');
+        isValid = false;
+      }
+    }
+
+    return isValid;
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    setNameError(null);
+    setEmailError(null);
+    setPasswordError(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
       await signup(name.trim(), email.trim(), password);
       navigate('/', { replace: true });
     } catch (err) {
-      setError((err as Error).message);
+      const errorMessage = (err as Error).message;
+      setError(errorMessage);
+      
+      // Set field-specific errors if applicable
+      if (errorMessage.toLowerCase().includes('name')) {
+        setNameError(errorMessage);
+      } else if (errorMessage.toLowerCase().includes('email')) {
+        setEmailError(errorMessage);
+      } else if (errorMessage.toLowerCase().includes('password')) {
+        setPasswordError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -41,10 +103,23 @@ function SignupPage() {
               type="text"
               autoComplete="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-zinc-700 transition focus:ring-2 focus:ring-netflixRed"
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError(null);
+                setError(null);
+              }}
+              className={`w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 transition ${
+                nameError
+                  ? 'ring-red-500 focus:ring-2 focus:ring-red-500'
+                  : 'ring-zinc-700 focus:ring-2 focus:ring-netflixRed'
+              }`}
               required
             />
+            {nameError && (
+              <p className="text-xs text-red-400" role="alert">
+                {nameError}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -56,10 +131,23 @@ function SignupPage() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-zinc-700 transition focus:ring-2 focus:ring-netflixRed"
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(null);
+                setError(null);
+              }}
+              className={`w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 transition ${
+                emailError
+                  ? 'ring-red-500 focus:ring-2 focus:ring-red-500'
+                  : 'ring-zinc-700 focus:ring-2 focus:ring-netflixRed'
+              }`}
               required
             />
+            {emailError && (
+              <p className="text-xs text-red-400" role="alert">
+                {emailError}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -71,11 +159,55 @@ function SignupPage() {
               type="password"
               autoComplete="new-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-zinc-700 transition focus:ring-2 focus:ring-netflixRed"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordError(null);
+                setError(null);
+                setShowPasswordRequirements(true);
+              }}
+              onFocus={() => setShowPasswordRequirements(true)}
+              className={`w-full rounded bg-zinc-900 px-3 py-2 text-sm text-white outline-none ring-1 transition ${
+                passwordError
+                  ? 'ring-red-500 focus:ring-2 focus:ring-red-500'
+                  : 'ring-zinc-700 focus:ring-2 focus:ring-netflixRed'
+              }`}
               required
-              minLength={4}
             />
+            {passwordError && (
+              <p className="text-xs text-red-400" role="alert">
+                {passwordError}
+              </p>
+            )}
+            {showPasswordRequirements && !passwordError && (
+              <div className="rounded-md bg-zinc-900/50 p-2 text-xs text-zinc-400">
+                <p className="mb-1 font-semibold text-zinc-300">
+                  Password must contain:
+                </p>
+                <ul className="ml-4 list-disc space-y-0.5">
+                  <li className={password.length >= 8 ? 'text-green-400' : ''}>
+                    At least 8 characters
+                  </li>
+                  <li className={/[A-Z]/.test(password) ? 'text-green-400' : ''}>
+                    One uppercase letter
+                  </li>
+                  <li className={/[a-z]/.test(password) ? 'text-green-400' : ''}>
+                    One lowercase letter
+                  </li>
+                  <li className={/[0-9]/.test(password) ? 'text-green-400' : ''}>
+                    One number
+                  </li>
+                  <li
+                    className={
+                      /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+                        ? 'text-green-400'
+                        : ''
+                    }
+                  >
+                    One special character
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
 
           {error && (

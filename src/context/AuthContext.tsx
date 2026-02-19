@@ -2,6 +2,8 @@ import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 import type { PropsWithChildren } from 'react';
 import type { AuthContextValue, AuthUser } from '../types/auth';
 import { clearAuthUser, getAuthUser, saveAuthUser } from '../utils/storage';
+import { isValidEmail, validatePassword, validateName } from '../utils/validation';
+import { createUser, verifyUser } from '../utils/userStorage';
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -17,37 +19,87 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [user]);
 
   const login = useCallback(async (email: string, password: string) => {
-    if (!email || !password) {
-      throw new Error('Email and password are required');
+    // Validate email format
+    if (!email || !email.trim()) {
+      throw new Error('Email is required');
     }
 
-    const existing = getAuthUser<AuthUser>();
-    const nameFromEmail = email.split('@')[0] || 'User';
+    if (!isValidEmail(email)) {
+      throw new Error('Please enter a valid email address');
+    }
 
-    const authUser: AuthUser = existing?.email === email
-      ? existing
-      : {
-          id: crypto.randomUUID(),
-          name: existing?.name ?? nameFromEmail,
-          email,
-        };
+    // Validate password
+    if (!password || !password.trim()) {
+      throw new Error('Password is required');
+    }
+
+    if (password.length < 4) {
+      throw new Error('Password must be at least 4 characters long');
+    }
+
+    // Verify user credentials
+    const storedUser = verifyUser(email.trim(), password);
+
+    if (!storedUser) {
+      throw new Error('Invalid email or password. Please check your credentials.');
+    }
+
+    // Set authenticated user (without password)
+    const authUser: AuthUser = {
+      id: storedUser.id,
+      name: storedUser.name,
+      email: storedUser.email,
+    };
 
     setUser(authUser);
   }, []);
 
   const signup = useCallback(
     async (name: string, email: string, password: string) => {
-      if (!name || !email || !password) {
-        throw new Error('All fields are required');
+      // Validate name
+      if (!name || !name.trim()) {
+        throw new Error('Name is required');
       }
 
-      const authUser: AuthUser = {
-        id: crypto.randomUUID(),
-        name,
-        email,
-      };
+      const nameValidation = validateName(name);
+      if (!nameValidation.isValid) {
+        throw new Error(nameValidation.error || 'Invalid name');
+      }
 
-      setUser(authUser);
+      // Validate email
+      if (!email || !email.trim()) {
+        throw new Error('Email is required');
+      }
+
+      if (!isValidEmail(email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate password
+      if (!password || !password.trim()) {
+        throw new Error('Password is required');
+      }
+
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.isValid) {
+        throw new Error(passwordValidation.errors[0] || 'Invalid password');
+      }
+
+      // Create new user
+      try {
+        const storedUser = createUser(name.trim(), email.trim(), password);
+
+        // Set authenticated user (without password)
+        const authUser: AuthUser = {
+          id: storedUser.id,
+          name: storedUser.name,
+          email: storedUser.email,
+        };
+
+        setUser(authUser);
+      } catch (error) {
+        throw error;
+      }
     },
     [],
   );
